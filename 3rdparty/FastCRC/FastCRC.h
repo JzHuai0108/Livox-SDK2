@@ -129,7 +129,7 @@ public:
 #endif
 private:
 #if CRC_SW
-  uint16_t seed;
+  // uint16_t seed;
 #else
   uint16_t update(const uint8_t *data, const size_t datalen);
 #endif
