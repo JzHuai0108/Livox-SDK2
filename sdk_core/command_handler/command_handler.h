@@ -44,7 +44,7 @@ namespace lidar {
 class CommandHandler {
  public:
   CommandHandler(DeviceManager* device_manager) : device_manager_(device_manager) {}
-  ~CommandHandler() {}
+  virtual ~CommandHandler() {}
 
   virtual bool Init(bool is_view) = 0;
   virtual bool Init(const std::map<uint32_t, LivoxLidarCfg>& custom_lidars_cfg_map) = 0;

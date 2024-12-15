@@ -31,7 +31,7 @@ namespace lidar {
 class noncopyable {
  protected:
   noncopyable() {}
-  ~noncopyable() {}
+  virtual ~noncopyable() {}
 
  private:
   noncopyable(const noncopyable &);
