@@ -805,6 +805,31 @@ bool DeviceManager::GetLoggerCmdChannel(const uint8_t dev_type, const uint32_t h
   return false;
 }
 
+void DeviceManager::StopDetection() {
+  detection_host_ip_ = "";
+  if (detection_socket_ > 0) {
+    detection_io_thread_->GetLoop().lock()->RemoveDelegate(detection_socket_, this);
+  }
+  if (detection_broadcast_socket_ > 0) {
+    detection_io_thread_->GetLoop().lock()->RemoveDelegate(detection_broadcast_socket_, this);
+  }
+  if (detection_thread_) {
+    is_stop_detection_.store(true);
+    detection_thread_->join();
+    detection_thread_ = nullptr;
+
+    if (detection_socket_ > 0) {
+      util::CloseSock(detection_socket_);
+      detection_socket_ = -1;
+    }
+
+    if (detection_broadcast_socket_ > 0) {
+      util::CloseSock(detection_broadcast_socket_);
+      detection_broadcast_socket_ = -1;
+    }
+  }
+}
+
 void DeviceManager::Destory() {
   detection_host_ip_ = "";
 
