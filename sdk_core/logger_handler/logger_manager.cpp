@@ -156,6 +156,13 @@ livox_status LoggerManager::StartLogger(const uint32_t handle, const LivoxLidarL
   }
 
   LOG_INFO("Start Logger handler: {}, log_type: {}", handle, log_type);
+  if (handlers_.find(handle) == handlers_.end()) {
+    if (devices_info_.find(handle) != devices_info_.end()) {
+      auto serial_num = devices_info_[handle].sn;
+      handlers_[handle] = std::make_shared<LoggerHandler>(log_root_path_, serial_num);
+      handlers_[handle]->Init();
+    }
+  }
 
   EnableDeviceLoggerRequest enable_req = {};
   enable_req.log_type = static_cast<uint8_t>(log_type);

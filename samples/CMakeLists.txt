@@ -22,11 +22,12 @@ add_subdirectory(logger)
 add_subdirectory(debug_point_cloud)
 add_subdirectory(lidar_cmd_observer)
 add_subdirectory(livox_lidar_rmc_time_sync)
-
 add_executable(set_lidar_ip set_lidar_ip.cpp)
 target_include_directories(set_lidar_ip
-				PUBLIC
-				${PROJECT_SOURCE_DIR}/../sdk_core)
+					PUBLIC
+					${PROJECT_SOURCE_DIR}/../sdk_core)
 target_link_libraries(set_lidar_ip
                 PUBLIC
                 livox_lidar_sdk_static)
+add_subdirectory(livox_lidar_ip_set)
+add_subdirectory(livox_lidar_info_get)
