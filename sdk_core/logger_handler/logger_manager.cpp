@@ -67,6 +67,10 @@ LoggerManager& LoggerManager::GetInstance() {
 }
 
 bool LoggerManager::Init(std::shared_ptr<LivoxLidarLoggerCfg> lidar_logger_cfg_ptr) {
+  is_destroy_.store(false);
+  cond_ = false;
+  handlers_.clear();
+  devices_info_.clear();
   if (lidar_logger_cfg_ptr == nullptr || 
       lidar_logger_cfg_ptr->lidar_log_enable == false) {
     log_enable_.store(false);
