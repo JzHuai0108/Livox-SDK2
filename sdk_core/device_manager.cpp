@@ -326,7 +326,7 @@ bool DeviceManager::CreateCommandChannel(const uint8_t dev_type, const HostNetIn
 
 #ifdef WIN32
 #else
-  if (dev_type == kLivoxLidarTypeMid360) {
+  if (dev_type == kLivoxLidarTypeMid360 || dev_type == kLivoxLidarTypeMid360s) {
     socket_t broadcast_socket = util::CreateSocket(host_net_info.push_msg_port, true, true, true, "255.255.255.255", "");
     if (broadcast_socket < 0) {
       LOG_ERROR("Create broadcast socket failed.");
@@ -695,6 +695,11 @@ void DeviceManager::AddViewLidar(const uint32_t handle, LivoxLidarDiagInternalIn
     view_lidar_info_ptr->lidar_imu_data_port = kMid360LidarImuDataPort;
   }
 
+  if (view_lidar_info_ptr->dev_type == kLivoxLidarTypeMid360s) {
+    view_lidar_info_ptr->lidar_point_port = kMid360sLidarPointCloudPort;
+    view_lidar_info_ptr->lidar_imu_data_port = kMid360sLidarImuDataPort;
+  }
+
   CreateViewDataChannel(*view_lidar_info_ptr);
   {
     std::lock_guard<std::mutex> lock(view_lidars_info_mutex_);
@@ -803,6 +808,31 @@ bool DeviceManager::GetLoggerCmdChannel(const uint8_t dev_type, const uint32_t h
     return false;
   }
   return false;
+}
+
+void DeviceManager::StopDetection() {
+  detection_host_ip_ = "";
+  if (detection_socket_ > 0) {
+    detection_io_thread_->GetLoop().lock()->RemoveDelegate(detection_socket_, this);
+  }
+  if (detection_broadcast_socket_ > 0) {
+    detection_io_thread_->GetLoop().lock()->RemoveDelegate(detection_broadcast_socket_, this);
+  }
+  if (detection_thread_) {
+    is_stop_detection_.store(true);
+    detection_thread_->join();
+    detection_thread_ = nullptr;
+
+    if (detection_socket_ > 0) {
+      util::CloseSock(detection_socket_);
+      detection_socket_ = -1;
+    }
+
+    if (detection_broadcast_socket_ > 0) {
+      util::CloseSock(detection_broadcast_socket_);
+      detection_broadcast_socket_ = -1;
+    }
+  }
 }
 
 void DeviceManager::Destory() {

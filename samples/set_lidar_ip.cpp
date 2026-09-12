@@ -24,6 +24,7 @@
 
 #include "livox_lidar_def.h"
 #include "livox_lidar_api.h"
+#include "device_manager.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -34,7 +35,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <thread>
 #include <chrono>
 #include <iostream>
@@ -77,15 +78,6 @@ void ImuDataCallback(uint32_t handle, const uint8_t dev_type,  LivoxLidarEtherne
 //     printf("lidar set ip number timeout\n");
 //   }
 // }
-
-void EscModeSetCallback(livox_status status, uint32_t handle, LivoxLidarAsyncControlResponse *response, void *client_data) {
-  printf("set lidar esc mode, please power off and on lidar!!!!\n");
-  if (response == nullptr) {
-    return;
-  }
-  printf("EscModeSetCallback, status:%u, handle:%u, ret_code:%u, error_key:%u",
-      status, handle, response->ret_code, response->error_key);
-}
 
 void WorkModeCallback(livox_status status, uint32_t handle,LivoxLidarAsyncControlResponse *response, void *client_data) {
   if (response == nullptr) {
@@ -166,9 +158,6 @@ void LidarInfoChangeCallback(const uint32_t handle, const LivoxLidarInfo* info, 
     return;
   } 
   printf("LidarInfoChangeCallback Lidar handle: %u SN: %s\n", handle, info->sn);
-
-  // set lidar esc mode
-  SetLivoxLidarEscMode(handle, kLivoxEscSpeedSlow, EscModeSetCallback, nullptr);
   
   // set the work mode to kLivoxLidarNormal, namely start the lidar
   SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, WorkModeCallback, nullptr);
@@ -190,37 +179,90 @@ void LivoxLidarPushMsgCallback(const uint32_t handle, const uint8_t dev_type, co
   return;
 }
 
+void LivoxLidarSetIpControlCallback(livox_status status, uint32_t handle, 
+                                    LivoxLidarAsyncControlResponse *response, void *client_data) {
+  if (status != kLivoxLidarStatusSuccess) {
+    printf("set lidar ip failed. status: %u, handle:%u\n", status, handle);
+    return;
+  } else {
+    printf("set lidar ip success.\n");
+  }
+
+  if (response == nullptr) {
+    return;
+  } else {
+    printf("set lidar ip status :%u, handle:%u, ret_code:%u, error_key:%u\n",
+        status, handle, response->ret_code, response->error_key);
+  }
+}
+
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
-    printf("Params Invalid, must input config path.\n");
+    printf("Params Invalid, must input either config.json or host_ip.\n");
     return -1;
   }
-  const std::string path = argv[1];
+  const std::string host_ip = argv[1];
+
+  LivoxLidarLoggerCfgInfo log_cfg_info;
+  log_cfg_info.lidar_log_enable = true;
+  log_cfg_info.lidar_log_cache_size = 1024 * 1024 * 10; // 10M
+  strcpy(log_cfg_info.lidar_log_path, ".");
 
   // REQUIRED, to init Livox SDK2
-  if (!LivoxLidarSdkInit(path.c_str())) {
-    printf("Livox Init Failed\n");
+  // Determine whether the host IP is in the 192.168.x.x range
+  bool is_local_subnet = host_ip.rfind("192.168.", 0) == 0;  // starts with "192.168."
+
+  if (is_local_subnet) {
+    printf("Host IP: %s\n", host_ip.c_str());
+    if (!LivoxLidarSdkInit(nullptr, host_ip.c_str(), &log_cfg_info)) {
+      printf("Livox Init with host ip Failed\n");
+      LivoxLidarSdkUninit();
+      return -1;
+    }
+  } else if (!LivoxLidarSdkInit(host_ip.c_str(), nullptr, &log_cfg_info)) {
+    printf("config json: %s\n", host_ip.c_str());
+    printf("Livox Init with config json Failed\n");
     LivoxLidarSdkUninit();
     return -1;
+  } else {
+    printf("Livox Init Success\n");
   }
-  
+
   // REQUIRED, to get point cloud data via 'PointCloudCallback'
-  SetLivoxLidarPointCloudCallBack(PointCloudCallback, nullptr);
+  // SetLivoxLidarPointCloudCallBack(PointCloudCallback, nullptr);
   
   // OPTIONAL, to get imu data via 'ImuDataCallback'
   // some lidar types DO NOT contain an imu component
-  SetLivoxLidarImuDataCallback(ImuDataCallback, nullptr);
+  // SetLivoxLidarImuDataCallback(ImuDataCallback, nullptr);
   
-  SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
-  
+  // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
+
   // REQUIRED, to get a handle to targeted lidar and set its work mode to NORMAL
-  SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, nullptr);
+  // SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, nullptr);
 
 #ifdef WIN32
-  Sleep(300000);
+  Sleep(3000);
 #else
-  sleep(300);
+  sleep(3);
 #endif
+  // livox::lidar::DeviceManager::GetInstance().StopDetection();
+  uint32_t handle = 1913301184; 
+  // "192.168.1.114" -> 1912711360
+  // "192.168.10.114" -> 1913301184
+  LivoxLidarIpInfo ip_config;
+  // zero it out first (optional, but safe)
+  std::memset(&ip_config, 0, sizeof(ip_config));
+
+  // copy each C-string, making sure to leave room for the '\0'
+  std::strncpy(ip_config.ip_addr,  "192.168.1.114", sizeof(ip_config.ip_addr) - 1);
+  std::strncpy(ip_config.net_mask, "255.255.255.0", sizeof(ip_config.net_mask) - 1);
+  std::strncpy(ip_config.gw_addr,   "192.168.1.1",   sizeof(ip_config.gw_addr) - 1);
+  printf("Set Lidar IP: %s, Net Mask: %s, Gateway: %s\n",
+      ip_config.ip_addr, ip_config.net_mask, ip_config.gw_addr);
+  SetLivoxLidarIp(handle, &ip_config, LivoxLidarSetIpControlCallback, nullptr);
+  sleep(5);
+
+  printf("LivoxLidarSdkUninit start...\n");
   LivoxLidarSdkUninit();
   printf("Livox Quick Start Demo End!\n");
   return 0;

@@ -96,6 +96,7 @@ class DeviceManager : public IOLoop::IOLoopDelegate {
   DeviceManager& operator=(const DeviceManager& other) = delete;
  public:
   typedef std::chrono::steady_clock::time_point TimePoint;
+  void StopDetection();
   void Destory();
   ~DeviceManager();
   static DeviceManager& GetInstance();

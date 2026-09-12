@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 set(SDK_LIBRARY_STATIC livox_lidar_sdk_static)
 set(SDK_LIBRARY_SHARED livox_lidar_sdk_shared)
@@ -109,6 +109,7 @@ set(COMMAND_HANDLER_SOURCES
         command_handler/mid360_command_handler.cpp
         command_handler/build_request.cpp
         command_handler/parse_lidar_state_info.cpp
+        command_handler/mid360s_command_handler.cpp
         )
 set(DEBUG_POINT_CLOUD_HANDLER_SOURCES
         debug_point_cloud_handler/debug_point_cloud_manager.cpp
